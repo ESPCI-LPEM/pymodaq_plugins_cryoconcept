@@ -90,7 +90,7 @@ class DAQ_0DViewer_MMR3(DAQ_Viewer_base):
                 data.append(
                     DataFromPlugins(
                         name=child.name(),
-                        data=[np.array(0) for _ in labels],
+                        data=[np.array([0]) for _ in labels],
                         labels=labels,
                         dim='Data0D'
                     )
@@ -168,7 +168,7 @@ class DAQ_0DViewer_MMR3(DAQ_Viewer_base):
         data_response = []
         for child in self.settings.child('channel').children():
             labels = child.value()['selected'][:]
-            subdata = [np.array(data[label]) for label in labels]
+            subdata = [np.array([data[label]]) for label in labels]
             data_response.append(DataFromPlugins(
                 name=child.name(),
                 data=subdata,
