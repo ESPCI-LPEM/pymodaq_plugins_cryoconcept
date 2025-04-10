@@ -14,7 +14,7 @@ from pymodaq_utils.logger import set_logger, get_module_name
 
 logger = set_logger(get_module_name(__file__), add_to_console=False)
 
-class MMR3:
+class Cryostat:
     
     def __init__(self, ip: str, port: int=23) -> None:
         self.ip = ip

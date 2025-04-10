@@ -18,17 +18,19 @@ from pymodaq_gui.parameter import Parameter
 
 from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, comon_parameters, main
 
-from pymodaq_plugins_cryoconcept.hardware.MMR3 import MMR3
+from pymodaq_plugins_cryoconcept.hardware.Cryostat import Cryostat
 
-CHANNELS = ["R1", "R2", "R3"]
+CHANNELS = ["fr", "still", "stage1", "stage2"]
 
+for channel in CHANNELS:
+    assert hasattr(Cryostat, channel)
 
 class ChannelGroup(GroupParameter):
     """Group Parameter listing the different outputs of the MMR3
     """
 
     def __init__(self, **opts) -> None:
-        opts['type'] = 'mmr3channel'
+        opts['type'] = 'cryostatchannel'
         opts['addText'] = 'Add channel'
         super().__init__(**opts)
 
@@ -55,24 +57,24 @@ class ChannelGroup(GroupParameter):
 
         self.addChild(child)
 
-registerParameterType('mmr3channel', ChannelGroup, override=True)
+registerParameterType('cryostatchannel', ChannelGroup, override=True)
 
 
-class DAQ_0DViewer_MMR3(DAQ_Viewer_base):
-    """ MMR3 plugin class for a 0D viewer
+class DAQ_0DViewer_Cryostat(DAQ_Viewer_base):
+    """ Cryostat plugin class for a 0D viewer
 
     This object inherits all functionalities to communicate with PyMoDAQ’s DAQ_Viewer module through inheritance via
-    DAQ_Viewer_base. It retrieves the data from a MMR3 using communication from an IMacRT.
+    DAQ_Viewer_base. It retrieves the data from a Cryostat using communication from an IMacRT.
 
     """
     params = comon_parameters+[
             {'title': 'IP address', 'name': 'ip', 'type': 'str'},
-            {'title': 'Port', 'name': 'port', 'type': 'int'},
-            {"title": "Channel", "name": "channel", "type": "mmr3channel"}
+            {'title': 'Port', 'name': 'port', 'type': 'int', 'default': 23},
+            {"title": "Channel", "name": "channel", "type": "cryostatchannel"}
     ]
 
     def ini_attributes(self) -> None:
-        self.controller: MMR3 = None
+        self.controller: Cryostat = None
 
     def commit_settings(self, param: Parameter) -> None:
          """Apply the consequences of a change of value in the detector settings
@@ -97,13 +99,13 @@ class DAQ_0DViewer_MMR3(DAQ_Viewer_base):
                 )
             self.dte_signal_temp.emit(
                 DataToExport(
-                    name="mmr3",
+                    name="cryostat",
                     data=data
                 )
             )
              
 
-    def ini_detector(self, controller: MMR3=None) -> tuple[str, bool]:
+    def ini_detector(self, controller: Cryostat=None) -> tuple[str, bool]:
         """Detector communication initialization
 
         Parameters
@@ -122,11 +124,11 @@ class DAQ_0DViewer_MMR3(DAQ_Viewer_base):
         self.ini_detector_init(slave_controller=controller)
 
         if self.is_master:
-            self.controller = MMR3(self.settings['ip'], self.settings['port'])
+            self.controller = Cryostat(self.settings['ip'], self.settings['port'])
         
         self.dte_signal_temp.emit(
             DataToExport(
-                name='mmr3',
+                name='cryostat',
                 data=[DataFromPlugins(
                     name='Mock1',
                     data=[np.array([0]), np.array([0])],
@@ -162,14 +164,13 @@ class DAQ_0DViewer_MMR3(DAQ_Viewer_base):
         kwargs: dict
             others optionals arguments
         """
-
-        data = self.controller.get_data()
         
-        data_response = []
+        data = []
         for child in self.settings.child('channel').children():
             labels = child.value()['selected'][:]
-            subdata = [np.array([data[label]]) for label in labels]
-            data_response.append(DataFromPlugins(
+            subdata = [np.array([getattr(self.controller, label)])
+                       for label in labels]
+            data.append(DataFromPlugins(
                 name=child.name(),
                 data=subdata,
                 labels=labels,
@@ -177,8 +178,8 @@ class DAQ_0DViewer_MMR3(DAQ_Viewer_base):
             ))
 
         self.dte_signal.emit(DataToExport(
-            name='mmr3',
-            data=data_response
+            name='cryostat',
+            data=data
         ))
 
     def stop(self) -> None:
