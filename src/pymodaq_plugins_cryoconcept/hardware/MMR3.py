@@ -16,7 +16,7 @@ logger = set_logger(get_module_name(__file__), add_to_console=False)
 
 class MMR3:
     
-    def __init__(self, ip: str, port: int) -> None:
+    def __init__(self, ip: str, port: int=23) -> None:
         self.ip = ip
         self.port = port
         self.socket: socket.socket = None
@@ -34,27 +34,39 @@ class MMR3:
         if self.socket is not None:
             self.socket.close()
 
-    def get_data(self) -> dict[str, float]:
-        data = {}
+    def get_data(self, command: str) -> dict[str, float]:
+        self.socket.send(f"{command}\r\n".encode('ascii'))
+        return self.socket.recv(1024).decode('ascii')
 
-        try:
-            d = self.socket.recv(1024).decode('ascii')
-            pattern: re.Pattern = re.compile(
-                r"(\d+);-?(\d+);(\d+.\d+e[-\+]\d+)"
-            )
+    @property
+    def fr(self):
+        res =  self.get_data("RR925?")
+        if res == "?RR925":
+            return None
+        else:
+            return float(res[7:])
+        
+    @property
+    def still(self):
+        res =  self.get_data("RR931?")
+        if res == "?RR931":
+            return None
+        else:
+            return float(res[7:])
+        
+    @property
+    def stage2(self):
+        res =  self.get_data("RR933?")
+        if res == "?RR933":
+            return None
+        else:
+            return float(res[7:])
+        
+    @property
+    def stage1(self):
+        res =  self.get_data("RR935?")
+        if res == "?RR935":
+            return None
+        else:
+            return float(res[7:])
 
-            for match in pattern.finditer(d):
-                if int(match.group(1)) == 3:
-                    data["R1"] = float(match.group(3))
-                if int(match.group(1)) == 14:
-                    data["R2"] = float(match.group(3))
-                if int(match.group(1)) == 25:
-                    data["R3"] = float(match.group(3))
-        except socket.error as e:
-            logger.error(f"Communication problem with {self.ip}:{self.port}.\n{e}")
-            data = None
-        except Exception as e:
-            logger.error(f"Unable to match data in received data.\n{d}\n{e}")
-            data = None
-
-        return data
